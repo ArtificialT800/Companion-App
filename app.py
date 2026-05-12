@@ -3,6 +3,11 @@ from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template, request, Response, jsonify
 from downloader import Downloader, getOutputDir
 
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w")
+    
 def install(pkg):
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", pkg])
 
