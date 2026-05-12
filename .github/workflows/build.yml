@@ -34,8 +34,59 @@ jobs:
       - name: Build
         run: pyinstaller PlumDownloader.spec
 
-      - name: Upload artifact
+      - name: Zip .app bundle (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: cd dist && zip -r PlumDownloader-macos.zip PlumDownloader.app
+
+      - name: Upload artifact (Windows)
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/
+          path: dist/PlumDownloader.exe
+
+      - name: Upload artifact (macOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/PlumDownloader-macos.zip
+
+      - name: Upload artifact (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/PlumDownloader
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: PlumDownloader ${{ github.ref_name }}
+          body: |
+            ## PlumDownloader ${{ github.ref_name }}
+
+            A companion desktop app!
+
+            ### Downloads
+            | Platform | File |
+            |---|---|
+            | Windows | `PlumDownloader.exe` |
+            | macOS | `PlumDownloader-macos.zip` - unzip and open `PlumDownloader.app` |
+            | Linux | `PlumDownloader` - make executable with `chmod +x PlumDownloader` |
+          files: artifacts/**/*
+          draft: false
+          prerelease: false
