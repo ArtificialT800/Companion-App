@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PLUM Downloader</title>
+
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+
+<link rel="alternate icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
+<link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+
+<link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+
+<link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<div id="setup-overlay">
+<div class="setup-card">
+<h2 class="setup-title">Welcome to PLUM Downloader</h2>
+<p class="setup-sub">To download from YouTube, the app needs your YouTube cookies so it doesn't get blocked. Choose how you'd like to set this up - you only do this once.</p>
+<div class="option-cards">
+
+<div id="opt-a" class="option-card option-card--selected" onclick="selectOption('a')">
+<div class="option-header">
+<div class="option-badge">A</div>
+<span class="option-title">Browser Extension</span>
+<span class="option-tag">RECOMMENDED</span>
+</div>
+<p class="option-desc">Install a free open-source extension, go to YouTube, export only your YouTube cookies as a file. Works on Chrome, Edge, Brave, Opera - any Chromium browser.</p>
+<div class="option-pros">
+<span class="pro">Any Chromium browser</span>
+<span class="pro">Only YouTube cookies</span>
+<span class="warn">Note: re-export every few weeks</span>
+</div>
+</div>
+
+<div id="opt-b" class="option-card" onclick="selectOption('b')">
+<div class="option-header">
+<div class="option-badge option-badge--inactive">B</div>
+<span class="option-title">Firefox Separate Profile</span>
+</div>
+<p class="option-desc">Create a separate Firefox profile just for YouTube. Cookies are always fresh automatically - no manual export needed.</p>
+<div class="option-pros">
+<span class="pro">Always fresh, automatic</span>
+<span class="pro">Fully isolated</span>
+<span class="warn">Note: requires Firefox</span>
+</div>
+</div>
+
+</div>
+
+<div id="instructions-a" class="instructions" style="display:none">
+<p class="instructions-label">SETUP STEPS:</p>
+<div class="steps">
+<div class="step"><span class="step-num">1</span><span>Install the extension: <a href="https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank">Get cookies.txt LOCALLY</a> - open source, verified safe</span></div>
+<div class="step"><span class="step-num">2</span><span>Go to <a href="https://youtube.com" target="_blank">youtube.com</a> and make sure you're signed in</span></div>
+<div class="step"><span class="step-num">3</span><span>Click the extension icon → click <strong>Export</strong> → save as <code>cookies.txt</code></span></div>
+<div class="step"><span class="step-num">4</span><span>Click below and select your <code>cookies.txt</code> file</span></div>
+</div>
+<div class="file-row">
+<input type="file" id="cookies-file-input" accept=".txt" style="display:none" onchange="loadCookiesFile(this)"/>
+<button onclick="document.getElementById('cookies-file-input').click()" class="btn btn-primary btn-block">Select cookies.txt file</button>
+<span id="file-status" class="file-status">No file selected</span>
+</div>
+</div>
+
+<div id="instructions-b" class="instructions" style="display:none">
+<p class="instructions-label">SETUP STEPS</p>
+<div class="steps">
+<div class="step"><span class="step-num">1</span><span>Download and install <a href="https://www.mozilla.org/firefox/" target="_blank">Firefox</a></span></div>
+<div class="step"><span class="step-num">2</span><span>Open Firefox → type <code>about:profiles</code> → click <strong>Create a New Profile</strong> → name it <em>YouTube</em></span></div>
+<div class="step"><span class="step-num">3</span><span>Click <strong>Launch profile in new browser</strong> → go to YouTube → sign in</span></div>
+<div class="step"><span class="step-num">4</span><span>Paste the <strong>Root Directory</strong> path from <code>about:profiles</code> below. Make sure Firefox is fully closed before downloading.</span></div>
+</div>
+<input class="input" id="firefox-profile-path" placeholder="e.g. /Users/you/Library/Application Support/Firefox/Profiles/abc123.YouTube" oninput="onProfileInput()"/>
+</div>
+
+<button id="finish-btn" onclick="finishSetup()" class="btn btn-primary btn-block btn-finish" disabled>Continue →</button>
+<p class="setup-footer">Your cookies never leave your device. This app is fully local.</p>
+</div>
+</div>
+
+<div class="header">
+  <img src="/static/favicon.svg" style="width:36px;height:36px;border-radius:11px;" alt="PLUM">
+  <h1 class="header-title"><span>PLUM</span> Downloader</h1>
+  <button onclick="resetSetup()" class="btn btn-outline btn-sm">Setup</button>
+</div>
+
+<div class="tabs">
+<button class="tab active" onclick="showTab('search', this)">Search</button>
+<button class="tab" onclick="showTab('playlist', this)">Playlist</button>
+<button class="tab" onclick="showTab('downloads', this)">Downloads</button>
+</div>
+
+<div class="content">
+
+<div class="screen active" id="screen-search">
+<div class="search-bar">
+<input class="input grow" id="search-input" placeholder="Search songs or paste YouTube URL..." onkeydown="if(event.key==='Enter') doSearch()"/>
+<button class="btn btn-primary" onclick="doSearch()">Search</button>
+</div>
+<div class="results" id="search-results"></div>
+</div>
+
+<!-- ─── Playlist screen ─────────────────────────────────────── -->
+<div class="screen" id="screen-playlist">
+
+  <!-- Source tabs -->
+  <div class="source-tabs">
+    <button class="source-tab active" id="src-tab-spotify" onclick="switchPlaylistSource('spotify')">Spotify</button>
+    <button class="source-tab" id="src-tab-youtube" onclick="switchPlaylistSource('youtube')">YouTube</button>
+  </div>
+
+  <!-- ── Spotify section ── -->
+  <div id="src-spotify">
+    <input type="file" id="csv-file-input" accept=".csv" style="display:none" onchange="handleCsvFile(this)"/>
+    <div class="exportify-card">
+      <div class="exportify-steps">
+        <div class="exportify-step"><span class="step-num">1</span><span>Go to <a href="https://exportify.app" target="_blank">exportify.app</a></span></div>
+        <div class="exportify-step"><span class="step-num">2</span><span>Click <strong>Get Started</strong> → log into Spotify → find your playlist</span></div>
+        <div class="exportify-step"><span class="step-num">3</span><span>Click <strong>Export</strong> → save the CSV file</span></div>
+        <div class="exportify-step"><span class="step-num">4</span><span>Drop the file below or click to browse</span></div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <input class="input" id="playlist-url-input" placeholder="Spotify playlist URL (optional - for playlist cover)" style="font-size:13px;"/>
+      </div>
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('csv-file-input').click()" ondragover="event.preventDefault(); this.classList.add('drop-zone--hover')" ondragleave="this.classList.remove('drop-zone--hover')" ondrop="handleCsvDrop(event)">
+        <p class="drop-title">Drop your CSV here</p>
+        <p class="drop-hint">or click to browse</p>
+      </div>
+    </div>
+    <div id="playlist-tracks" style="display:none">
+      <div class="format-row">
+        <span class="format-label">Format:</span>
+        <button class="chip active" id="chip-m4a" onclick="setFormat('m4a')">M4A</button>
+        <button class="chip" id="chip-mp3" onclick="setFormat('mp3')">MP3</button>
+        <button class="btn-outline btn-sm" onclick="toggleSelectAll()" id="select-all-btn">Deselect All</button>
+        <span class="batch-stats" id="batch-stats"></span>
+        <button class="btn btn-primary" id="download-all-btn" onclick="downloadAll()">Download All</button>
+        <button class="btn btn-outline" id="export-plumm-btn" onclick="exportToPlumm()" style="display:flex;align-items:center;gap:6px;">Export to PLUMM</button>
+      </div>
+      <div class="results" id="playlist-list"></div>
+    </div>
+  </div>
+  
+  <!-- ── YouTube section ── -->
+  <div id="src-youtube" style="display:none">
+    <div class="exportify-card">
+      <div class="exportify-steps">
+        <div class="exportify-step"><span class="step-num">1</span><span>Go to <a href="https://youtube.com" target="_blank">YouTube</a> and open the playlist you want to import</span></div>
+        <div class="exportify-step"><span class="step-num">2</span><span>Copy the playlist URL from your browser's address bar</span></div>
+        <div class="exportify-step"><span class="step-num">3</span><span>Paste it below and click <strong>Load Playlist</strong></span></div>
+      </div>
+      <div class="url-row" style="margin-top:4px;">
+        <input class="input grow" id="yt-playlist-url" placeholder="https://www.youtube.com/playlist?list=..." onkeydown="if(event.key==='Enter') loadYtPlaylist()"/>
+        <button class="btn btn-primary" id="yt-load-btn" onclick="loadYtPlaylist()">Load Playlist</button>
+      </div>
+      <div id="yt-load-status" style="font-size:12px;color:var(--text3);margin-top:8px;display:none;"></div>
+    </div>
+    
+    <div id="yt-playlist-tracks" style="display:none">
+      <div class="format-row">
+        <span class="format-label">Format:</span>
+        <button class="chip active" id="yt-chip-m4a" onclick="setYtFormat('m4a')">M4A</button>
+        <button class="chip" id="yt-chip-mp3" onclick="setYtFormat('mp3')">MP3</button>
+        <button class="btn-outline btn-sm" onclick="toggleYtSelectAll()" id="yt-select-all-btn">Deselect All</button>
+        <span class="batch-stats" id="yt-batch-stats"></span>
+        <button class="btn btn-primary" id="yt-download-btn" onclick="downloadYtAll()">Download Missing</button>
+        <button class="btn btn-outline" id="yt-export-btn" onclick="exportYtToPlumm()" style="display:flex;align-items:center;gap:6px;">Export to PLUMM</button>
+      </div>
+      <div class="results" id="yt-playlist-list"></div>
+    </div>
+  </div>
+</div>
+<!-- ─── end playlist screen ─────────────────────────────────── -->
+
+<div class="screen" id="screen-downloads">
+<div id="downloads-list">
+<div class="empty-state">
+<div class="empty-icon"></div>
+<p>No downloads yet</p>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

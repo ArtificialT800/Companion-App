@@ -1,0 +1,8 @@
+flask
+yt-dlp
+yt-dlp-ejs
+static-ffmpeg
+mutagen
+requests
+musicbrainzngs
+pyinstaller
