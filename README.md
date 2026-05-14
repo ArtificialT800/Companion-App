@@ -4,7 +4,7 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blueviolet.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#download)
 [![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://python.org)
-[![GitHub Release](https://img.shields.io/github/v/release/ArtificialT800/CompanionApp?color=blueviolet)](https://github.com/ArtificialT800/CompanionApp/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/ArtificialT800/CompanionApp?color=blueviolet)](https://github.com/ArtificialT800/Companion-App/releases)
 
 **Search and download music to your Android device.**
 
