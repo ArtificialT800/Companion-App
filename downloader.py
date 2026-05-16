@@ -25,7 +25,7 @@ _itunes_lock = threading.Lock()
 
 def getOutputDir():
     home = os.path.expanduser("~")
-    path = os.path.join(home, "Music", "Plum")
+    path = os.path.join(home, "Downloads", "Plum")
     os.makedirs(path, exist_ok=True)
     return path
 

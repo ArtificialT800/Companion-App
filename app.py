@@ -27,7 +27,7 @@ _queues: dict[str, queue.Queue] = {}
 _executor = ThreadPoolExecutor(max_workers=4)
 
 SETTINGS_FILE = os.path.join(os.path.expanduser("~"), ".plumm_downloader.json")
-PLUM_DIR = os.path.expanduser("~/Music/Plum")
+PLUM_DIR = os.path.join(os.path.expanduser("~"), "Downloads", "Plum")
 
 def get_queue(session_id):
     if session_id not in _queues:

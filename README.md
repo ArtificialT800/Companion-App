@@ -10,7 +10,7 @@
 
 A local desktop app that runs entirely on your machine. No accounts, no cloud, nothing leaves your network.
 
-[Download for Windows / macOS / Linux](https://github.com/ArtificialT800/Companion-App/releases) &nbsp;·&nbsp;
+[Download for Windows / macOS / Linux](https://github.com/ArtificialT800/Companion-App/releases) &nbsp;
 
 </div>
 
@@ -65,6 +65,19 @@ Pre-built binaries for all platforms are attached to every [GitHub Release](http
 3. Search for music, or paste a YouTube URL or playlist link
 4. Download your tracks - metadata and art are fetched automatically
 5. Transfer to your Android device via the WiFi transfer tab
+---
+
+## Troubleshooting
+
+### Songs not downloading on Windows 11
+If you are on Windows and the app is unable to save files (even in the Downloads folder), it may be due to **Windows Defender Controlled Folder Access**.
+
+If you encounter this:
+1. Open the **Start Menu**, type **"Windows Security"**, and open it.
+2. Navigate to **Virus & threat protection** -> **Manage ransomware protection**.
+3. If **"Controlled folder access"** is turned **On**, click on **"Allow an app through Controlled folder access"**.
+4. Click **"Add an allowed app"** -> **"Browse all apps"** and select the `PlumDownloader` exe.
+5. Restart the app.
 ---
 
 ## License
