@@ -1,12 +1,21 @@
-import subprocess, sys, os, threading, webbrowser, json, queue, shutil, time, csv, io, static_ffmpeg, requests
+import sys, os, time
+_t0 = time.perf_counter()
+import plum_logger
+log = plum_logger.setup()
+plum_logger.log_environment()
+import plum_lifecycle
+if not plum_lifecycle.acquire_instance():
+    log.info("another instance holds the lock, handing off and exiting")
+    plum_lifecycle.hand_off_to_running_instance()
+    sys.exit(0)
+plum_logger.probe_imports()
+import subprocess, threading, webbrowser, json, queue, shutil, csv, io, socket, requests
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template, request, Response, jsonify
+from werkzeug.exceptions import HTTPException
+import yt_dlp
+plum_logger.install_ytdlp_logging(yt_dlp)
 from downloader import Downloader, getOutputDir
-
-if sys.stdout is None:
-    sys.stdout = open(os.devnull, "w")
-if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w")
     
 def install(pkg):
     subprocess.check_call([sys.executable, "-m", "pip", "install", "--quiet", pkg])
@@ -19,12 +28,56 @@ if not getattr(sys, 'frozen', False):
             print(f"Installing {pkg}...")
             install(pkg)
 
-static_ffmpeg.add_paths()
+FFMPEG_DIR = os.path.join(os.path.expanduser("~"), ".plumm", "ffmpeg")
+_ffmpeg_ready = threading.Event()
+
+def _prepare_ffmpeg():
+    flog = plum_logger.get("ffmpeg")
+    started = time.perf_counter()
+    kept_stdout = sys.stdout
+    try:
+        import static_ffmpeg
+        from static_ffmpeg import run as ffmpeg_run
+        target = os.path.join(FFMPEG_DIR, ffmpeg_run.get_platform_key())
+        flog.info("ffmpeg dir %s, cached=%s", target, os.path.exists(os.path.join(target, "installed.crumb")))
+        static_ffmpeg.add_paths(download_dir=target)
+        flog.info("ffmpeg ready in %.1f s, resolved to %s", time.perf_counter() - started, shutil.which("ffmpeg"))
+    except Exception:
+        flog.exception("ffmpeg setup failed after %.1f s", time.perf_counter() - started)
+    finally:
+        sys.stdout = kept_stdout
+        _ffmpeg_ready.set()
+
+class _GatedExecutor(ThreadPoolExecutor):
+    def submit(self, fn, *args, **kwargs):
+        plum_lifecycle.job_begin()
+        def gated():
+            try:
+                _ffmpeg_ready.wait()
+                return fn(*args, **kwargs)
+            except Exception:
+                log.exception("background job failed")
+                raise
+            finally:
+                plum_lifecycle.job_end()
+        try:
+            return super().submit(gated)
+        except Exception:
+            plum_lifecycle.job_end()
+            raise
 
 app = Flask(__name__)
+plum_lifecycle.register(app)
 downloader = Downloader()
 _queues: dict[str, queue.Queue] = {}
-_executor = ThreadPoolExecutor(max_workers=4)
+_executor = _GatedExecutor(max_workers=4)
+
+@app.errorhandler(Exception)
+def _log_route_error(e):
+    if isinstance(e, HTTPException):
+        return e
+    log.exception("Unhandled error in %s %s", request.method, request.path)
+    return jsonify({'error': 'Internal error, see plum.log'}), 500
 
 SETTINGS_FILE = os.path.join(os.path.expanduser("~"), ".plumm_downloader.json")
 PLUM_DIR = os.path.join(os.path.expanduser("~"), "Downloads", "Plum")
@@ -62,7 +115,7 @@ def parse_exportify_csv(text: str) -> list[dict]:
         artist = (row.get('Artist Name(s)') or '').strip()
         album = (row.get('Album Name') or '').strip()
         art_url = (row.get('Album Image URL') or '').strip()
- 
+
         if ',' in artist:
             artist = artist.split(',')[0].strip()
 
@@ -77,7 +130,7 @@ def _unique_playlist_name(base_name: str, directory: str) -> str:
     while os.path.exists(os.path.join(directory, f"{base_name} ({counter}).plumm")):
         counter += 1
     return f"{base_name} ({counter})"
- 
+
 def fetch_spotify_cover(playlist_url: str) -> str | None:
     try:
         resp = requests.get('https://open.spotify.com/oembed', params={'url': playlist_url}, timeout=8, headers={'User-Agent': 'Mozilla/5.0'})
@@ -208,7 +261,7 @@ def events(session_id):
 
     return Response(stream(), mimetype='text/event-stream',
                     headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
- 
+
 @app.route('/api/setup/status')
 def setup_status():
     settings = load_settings()
@@ -301,7 +354,6 @@ def export_playlist():
 
     return jsonify({"success": True, "message": "Playlist saved to PLUMM folder"})
     
-# ─── YouTube playlist routes ──────────────────────────────────────────────────
 
 @app.route('/api/youtube/playlist/extract', methods=['POST'])
 def youtube_playlist_extract():
@@ -344,8 +396,7 @@ def youtube_playlist_export():
         json.dump(playlist, f, ensure_ascii=False, indent=2)
     
     return jsonify({"success": True, "message": "Playlist saved to PLUMM folder"})
- 
-# ─── Setup routes ─────────────────────────────────────────────────────────────
+
 
 @app.route('/api/setup/save', methods=['POST'])
 def setup_save():
@@ -360,10 +411,27 @@ def setup_reset():
     save_settings(settings)
     return jsonify({'ok': True})
 
+PORT = plum_lifecycle.PORT
+
 def open_browser():
-    time.sleep(1)
-    webbrowser.open('http://localhost:7823')
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", PORT), timeout=0.5):
+                log.info("server accepting connections %.1f s after app.py started, opening browser", time.perf_counter() - _t0)
+                webbrowser.open(f'http://localhost:{PORT}')
+                return
+        except OSError:
+            time.sleep(0.1)
+    log.error("server did not accept connections within 60 s")
 
 if __name__ == '__main__':
-    threading.Thread(target=open_browser, daemon=True).start()
-    app.run(port=7823, debug=False, threaded=True)
+    log.info("imports finished %.1f s after app.py started", time.perf_counter() - _t0)
+    threading.Thread(target=_prepare_ffmpeg, name="ffmpeg-setup", daemon=True).start()
+    threading.Thread(target=open_browser, name="open-browser", daemon=True).start()
+    plum_lifecycle.start_watchdog()
+    try:
+        app.run(port=PORT, debug=False, threaded=True)
+    except Exception:
+        log.critical("Flask failed to start", exc_info=True)
+        raise

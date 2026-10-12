@@ -189,6 +189,35 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<script>
+(function () {
+  var id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  var timer = null;
+  function beat() {
+    fetch('/api/lifecycle/heartbeat', {method: 'POST', body: id}).catch(function () {});
+  }
+  function start() {
+    if (timer === null) {
+      beat();
+      timer = setInterval(beat, 5000);
+    }
+  }
+  function stop() {
+    if (timer !== null) {
+      clearInterval(timer);
+      timer = null;
+    }
+  }
+  window.addEventListener('pagehide', function () {
+    stop();
+    try { navigator.sendBeacon('/api/lifecycle/closing', id); } catch (e) {}
+  });
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) start();
+  });
+  start();
+})();
+</script>
 <script src="/static/app.js"></script>
 </body>
 </html>

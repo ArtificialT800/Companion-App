@@ -303,7 +303,7 @@ class Downloader:
         if ' - ' in cleaned:
             parts = cleaned.split(' - ', 1)
             return parts[1].strip(), parts[0].strip()
- 
+
         # No dash - use full cleaned title, channel as artist placeholder
         return cleaned, channel
     
@@ -328,7 +328,7 @@ class Downloader:
         except Exception as e:
             print(f'Playlist extraction error: {e}')
             return {'name': '', 'cover_url': '', 'tracks': [], 'error': str(e)}
- 
+
         if not info:
             return {'name': '', 'cover_url': '', 'tracks': [], 'error': 'Could not extract playlist info'}
 
@@ -544,7 +544,7 @@ class Downloader:
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([url])
- 
+
             final_m4a  = os.path.join(output_dir, f"{filename}.m4a")
             final_mp3  = os.path.join(output_dir, f"{filename}.mp3")
             final_path = final_m4a if os.path.exists(final_m4a) else (final_mp3 if os.path.exists(final_mp3) else None)
@@ -576,7 +576,7 @@ class Downloader:
                         print(f"File renamed -> {new_filename}{ext}")
                     except Exception as e:
                         print(f"Rename failed (non-fatal): {e}")
- 
+
                 self._write_metadata(final_path, resolved_title, resolved_artist, resolved_album, resolved_art_url, resolved_genre)
 
             return final_path is not None

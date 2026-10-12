@@ -35,23 +35,30 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='PlumDownloader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    upx_exclude=[],
+    upx=False,
     console=False,
     icon='static/favicon.ico',
 )
 
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='PlumDownloader',
+)
+
 if sys.platform == 'darwin':
-    coll = BUNDLE(
-        exe,
+    app = BUNDLE(
+        coll,
         name='PlumDownloader.app',
-        icon=None,
+        icon='icons/PlumDownloader.icns',
         bundle_identifier='com.plum.downloader',
     )

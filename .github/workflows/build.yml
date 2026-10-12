@@ -31,19 +31,39 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Build macOS icon (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: |
+          SRC=static/favicon.png
+          sips -g pixelWidth -g pixelHeight "$SRC"
+          mkdir -p icons PlumIcon.iconset
+          for s in 16 32 128 256 512; do
+            sips -z $s $s "$SRC" --out PlumIcon.iconset/icon_${s}x${s}.png
+            sips -z $((s*2)) $((s*2)) "$SRC" --out PlumIcon.iconset/icon_${s}x${s}@2x.png
+          done
+          iconutil -c icns PlumIcon.iconset -o icons/PlumDownloader.icns
+
       - name: Build
         run: pyinstaller PlumDownloader.spec
 
+      - name: Zip folder (Windows only)
+        if: matrix.os == 'windows-latest'
+        run: Compress-Archive -Path dist/PlumDownloader -DestinationPath dist/PlumDownloader-windows.zip
+
       - name: Zip .app bundle (macOS only)
         if: matrix.os == 'macos-latest'
-        run: cd dist && zip -r PlumDownloader-macos.zip PlumDownloader.app
+        run: ditto -c -k --sequesterRsrc --keepParent dist/PlumDownloader.app dist/PlumDownloader-macos.zip
+
+      - name: Tar folder (Linux only)
+        if: matrix.os == 'ubuntu-latest'
+        run: tar -czf dist/PlumDownloader-linux.tar.gz -C dist PlumDownloader
 
       - name: Upload artifact (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/PlumDownloader.exe
+          path: dist/PlumDownloader-windows.zip
 
       - name: Upload artifact (macOS)
         if: matrix.os == 'macos-latest'
@@ -57,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: dist/PlumDownloader
+          path: dist/PlumDownloader-linux.tar.gz
 
   release:
     needs: build
@@ -84,9 +104,9 @@ jobs:
             ### Downloads
             | Platform | File |
             |---|---|
-            | Windows | `PlumDownloader.exe` |
+            | Windows | `PlumDownloader-windows.zip` - unzip, then run `PlumDownloader.exe` inside the folder (keep the folder together) |
             | macOS | `PlumDownloader-macos.zip` - unzip and open `PlumDownloader.app` |
-            | Linux | `PlumDownloader` - make executable with `chmod +x PlumDownloader` |
+            | Linux | `PlumDownloader-linux.tar.gz` - extract with `tar -xzf`, then run `PlumDownloader` inside the folder |
           files: artifacts/**/*
           draft: false
           prerelease: false
