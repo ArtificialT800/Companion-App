@@ -10,10 +10,43 @@ _state = {"ready": False, "crash_handle": None, "streams": []}
 _busy = threading.local()
 
 _ANSI = re.compile(r"\x1b\[[0-9;]*m")
+_USER_DIR = re.compile(r"(?<![\w.\-])((?:[a-z]:)?[\\/]{1,2}(?:users|home)[\\/]{1,2})([^\\/\s'\"<>|:*?]+)", re.IGNORECASE)
+_default_patterns = []
+
+def _make_patterns(home):
+    forms = set()
+    if home and home.strip("\\/"):
+        for variant in (home, home.replace("\\", "/"), home.replace("/", "\\")):
+            forms.add(variant)
+            forms.add(variant.replace("\\", "\\\\"))
+    return [re.compile(re.escape(form), re.IGNORECASE) for form in sorted(forms, key=len, reverse=True)]
+
+def sanitize(text, home=None):
+    if home is None:
+        if not _default_patterns:
+            _default_patterns.extend(_make_patterns(os.path.expanduser("~")))
+        patterns = _default_patterns
+    else:
+        patterns = _make_patterns(home)
+    for pattern in patterns:
+        text = pattern.sub("~", text)
+    return _USER_DIR.sub(r"\1<USER>", text)
+
+def _scrub_file(path):
+    try:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8", errors="replace") as handle:
+                raw = handle.read()
+            clean = sanitize(raw)
+            if clean != raw:
+                with open(path, "w", encoding="utf-8") as handle:
+                    handle.write(clean)
+    except OSError:
+        pass
 
 class _PlainFormatter(logging.Formatter):
     def format(self, record):
-        return _ANSI.sub("", super().format(record))
+        return sanitize(_ANSI.sub("", super().format(record)))
 
 class _StreamToLog:
     encoding = "utf-8"
@@ -127,6 +160,7 @@ def setup():
 
     sys.excepthook = _excepthook
     threading.excepthook = _thread_excepthook
+    _scrub_file(CRASH_FILE)
     try:
         _state["crash_handle"] = open(CRASH_FILE, "a", encoding="utf-8")
         faulthandler.enable(file=_state["crash_handle"], all_threads=True)

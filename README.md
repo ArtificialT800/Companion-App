@@ -44,27 +44,37 @@ Designed to pair with a local Android music player. [Get the Android app.](https
 - Runs entirely on your local network
 - No accounts, no telemetry, nothing uploaded anywhere
 - Cookies for YouTube authentication stored locally and never leave your machine
+- Logs stay on your machine, and your personal folder paths and username are replaced automatically before anything is written to them
 ---
 
 ## Download
 
 Pre-built binaries for all platforms are attached to every [GitHub Release](https://github.com/ArtificialT800/Companion-App/releases).
 
-| Platform | File |
-|----------|------|
-| Windows | `PlumDownloader.exe` |
-| macOS | `PlumDownloader-macos.zip` |
-| Linux | `PlumDownloader-linux.tar.gz` |
+| Platform | File | How to run |
+|----------|------|------------|
+| Windows | `PlumDownloader-windows.zip` | Unzip, then run `PlumDownloader.exe` inside the folder. Keep the folder together. |
+| macOS | `PlumDownloader-macos.zip` | Unzip, then open `PlumDownloader.app`. |
+| Linux | `PlumDownloader-linux.tar.gz` | Extract with `tar -xzf PlumDownloader-linux.tar.gz`, then run `PlumDownloader` inside the folder. |
 
 ---
 
 ## Usage
 
-1. Download and run the file for your platform
+1. Download the file for your platform, extract it and run it
 2. A browser window opens automatically at `http://localhost:7823`
 3. Search for music, or paste a YouTube URL or playlist link
 4. Download your tracks - metadata and art are fetched automatically
 5. Transfer to your Android device via the WiFi transfer tab
+
+### Opening and closing
+
+- Only one copy of the app runs at a time. Launching it again while it is open just opens a new browser tab on the running copy.
+- Closing the browser tab quits the app within a few seconds. If you have several tabs open, it quits when the last one closes.
+- If downloads are still running when you close the tab, the app waits for them to finish and then quits.
+- If the browser crashes, the app quits on its own after a few minutes. If no tab ever opens, it also quits after a few minutes.
+- On the very first launch the app downloads ffmpeg once (internet connection needed), so the first start can take longer. It is cached in the `.plumm` folder in your home directory, so later starts are fast.
+
 ---
 
 ## Troubleshooting
@@ -76,8 +86,26 @@ If you encounter this:
 1. Open the **Start Menu**, type **"Windows Security"**, and open it.
 2. Navigate to **Virus & threat protection** -> **Manage ransomware protection**.
 3. If **"Controlled folder access"** is turned **On**, click on **"Allow an app through Controlled folder access"**.
-4. Click **"Add an allowed app"** -> **"Browse all apps"** and select the `PlumDownloader` exe.
+4. Click **"Add an allowed app"** -> **"Browse all apps"** and select `PlumDownloader.exe` inside the extracted `PlumDownloader` folder.
 5. Restart the app.
+
+### The app will not start, or something went wrong
+
+The app writes log files you can attach to a bug report. They are in the `.plumm/logs` folder inside your home folder:
+
+- `plum.log`: everything the app did, with older copies rotated out automatically
+- `crash.log`: only written if the app crashed hard. Relaunch the app once before copying it, because it is cleaned of personal paths on the next start
+
+To open that folder:
+
+- Windows: paste `%USERPROFILE%\.plumm\logs` into the File Explorer address bar
+- macOS: in Finder press Cmd+Shift+G and enter `~/.plumm/logs`
+- Linux: open your home folder and press Ctrl+H to show hidden files, then open `.plumm/logs`
+
+Personal folder paths and your username are replaced automatically, but search queries and song titles are logged as typed, so skim the file before sharing it publicly.
+
+To report a problem, open an issue on the GitHub repository and the bug report template will ask for the log.
+
 ---
 
 ## License
@@ -109,7 +137,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Then open `http://localhost:7823` in your browser.
+Then open `http://localhost:7823` in your browser. When run from source, the app also prints its log to the console, and the same one-instance and close-the-tab behavior applies.
 
 ### Building a standalone executable
 
@@ -117,7 +145,15 @@ Then open `http://localhost:7823` in your browser.
 pyinstaller PlumDownloader.spec
 ```
 
-Output lands in `dist/`. The `.spec` file is included in the repo and handles all `--add-data` paths and hidden imports for all three platforms.
+The build produces a folder, not a single file. On Windows and Linux the output is the `dist/PlumDownloader/` folder (run the `PlumDownloader` executable inside it). On macOS it is `dist/PlumDownloader.app`. The build uses PyInstaller's one-folder mode so the app starts quickly (a single-file build would unpack itself on every launch). The `.spec` file is included in the repo and handles all `--add-data` paths and hidden imports for all three platforms.
+
+**macOS icon**
+
+The spec expects `icons/PlumDownloader.icns`. The GitHub Actions build generates it from a PNG on every run. For a local macOS build, create that file first (for example with `sips` and `iconutil`), or change `icon='icons/PlumDownloader.icns'` to `icon=None` in `PlumDownloader.spec`.
+
+**Releases**
+
+Releases are built by GitHub Actions (`.github/workflows/build.yml`) for Windows, macOS and Linux whenever a tag starting with `v` is pushed.
 
 ---
 
